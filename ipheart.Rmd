@@ -1,0 +1,320 @@
+---
+title: "ip2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r cars}
+source("DataAnalyticsFunctions.R")
+library(tree)
+library(randomForest)
+library(libcoin)
+library(partykit)
+library(tidyverse)
+library(readr)
+library(Hmisc)
+library(ggpubr)
+library(MASS)
+library(scales)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ggcorrplot)
+library('VIM')
+library('plyr')
+```
+
+
+
+```{r pressure, echo=FALSE}
+data=read.csv('heart.csv')
+summary(data)
+str(data)
+```
+
+
+```{r pressure, echo=FALSE}
+data$target=ifelse(data$target==1,'TRUE','FALSE')
+mean(data$target=='TRUE')
+aggr(data, numbers = TRUE, prop = c(TRUE, FALSE)) 
+data=data[data$thal!=0,]
+data=data[data$ca!=4,]
+data$sex=as.factor(data$sex)
+data$cp=as.factor(data$cp)
+data$fbs=as.factor(data$fbs)
+data$restecg=as.factor(data$restecg)
+data$exang=as.factor(data$exang)
+data$slope=as.factor(data$slope)
+data$ca=as.factor(data$ca)
+data$thal=as.factor(data$thal)
+
+```
+```{r}
+ggplot(data,aes(age,fill=target,color='grey'))+geom_histogram(binwidth =1, position='identity')+theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 7)) +
+  labs(x="age", y = "count")
+
+ggplot(data,aes(trestbps,fill=target))+geom_histogram(binwidth =5, position='identity')+theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 7)) +
+  labs(x="resting blood pressure", y = "count")
+
+ggplot(data,aes(chol,fill=target))+geom_histogram(binwidth =10, position='identity')+theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 7)) +
+  labs(x="serum cholestoral in mg/dl", y = "count")
+
+ggplot(data,aes(thalach,fill=target))+geom_histogram(binwidth =5, position='identity')+theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 7)) +
+  labs(x="maximum heart rate achieved", y = "count")
+
+ggplot(data,aes(oldpeak,fill=target))+geom_histogram(binwidth =1, position='identity')+theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 7)) +
+  labs(x="ST depression induced by exercise relative to rest", y = "count")
+```
+
+```{r}
+ggplot(data, aes(x=target, y=age, fill=target))+
+    geom_violin(width=1)+
+    geom_boxplot(width=0.1, color="black", alpha=0.5, outlier.size=0.1) +
+    labs(x="target", y="age") +
+    stat_summary(fun=mean, geom="point") +
+    theme(legend.position="none")
+
+ggplot(data, aes(x=target, y=trestbps, fill=target))+
+    geom_violin(width=1)+
+    geom_boxplot(width=0.1, color="black", alpha=0.5, outlier.size=0.1) +
+    labs(x="target", y="resting blood pressure") +
+    stat_summary(fun=mean, geom="point") +
+    theme(legend.position="none")
+
+ggplot(data, aes(x=target, y=chol, fill=target))+
+    geom_violin(width=1)+
+    geom_boxplot(width=0.1, color="black", alpha=0.5, outlier.size=0.1) +
+    labs(x="target", y="serum cholestoral in mg/dl") +
+    stat_summary(fun=mean, geom="point") +
+    theme(legend.position="none")
+
+ggplot(data, aes(x=target, y=thalach, fill=target))+
+    geom_violin(width=1)+
+    geom_boxplot(width=0.1, color="black", alpha=0.5, outlier.size=0.1) +
+    labs(x="target", y="maximum heart rate achieved") +
+    stat_summary(fun=mean, geom="point") +
+    theme(legend.position="none")
+
+ggplot(data, aes(x=target, y=oldpeak, fill=target))+
+    geom_violin(width=1)+
+    geom_boxplot(width=0.1, color="black", alpha=0.5, outlier.size=0.1) +
+    labs(x="target", y="ST depression induced by exercise relative to rest") +
+    stat_summary(fun=mean, geom="point") +
+    theme(legend.position="none")
+
+
+```
+
+```{r}
+plot(factor(target)~factor(sex), data=data, col=c(8,2), ylab="target")
+plot(factor(target)~factor(cp), data=data, col=c(8,2), ylab="target")
+plot(factor(target)~factor(fbs), data=data, col=c(8,2), ylab="target")
+plot(factor(target)~factor(restecg), data=data, col=c(8,2), ylab="target")
+plot(factor(target)~factor(exang), data=data, col=c(8,2), ylab="target")
+plot(factor(target)~factor(slope), data=data, col=c(8,2), ylab="target")
+plot(factor(target)~factor(ca), data=data, col=c(8,2), ylab="target")
+plot(factor(target)~factor(thal), data=data, col=c(8,2), ylab="target")
+
+```
+
+```{r}
+f00 <- sum( (data$fbs == 0) & (data$target == "FALSE") ) 
+f01 <- sum( (data$fbs == 0) & (data$target == "TRUE") ) 
+f10 <- sum( (data$fbs == 1) & (data$target == "FALSE") ) 
+f11 <- sum( (data$fbs == 1) & (data$target == "TRUE") ) 
+ContingencyMatrix <- as.table(rbind(c(f00, f01), c(f10, f11)))
+chisq.test(ContingencyMatrix)$p.value 
+```
+
+```{r}
+corrdata = data.frame(data$age, data$trestbps, data$chol,data$thalach,data$oldpeak)
+colnames(corrdata)[1] <- "age"
+colnames(corrdata)[2] <- "trestbps"
+colnames(corrdata)[3] <- "chol"
+colnames(corrdata)[4] <- "thalach"
+colnames(corrdata)[5] <- "oldpeak"
+CorrVal = cor(corrdata)
+ggcorrplot(CorrVal,lab=TRUE,color=c("blue", "white", "red"), title="Correlation Matrix") +
+  theme(plot.title=element_text(hjust=0.6))
+```
+
+```{r}
+plot(trestbps~age, data=data, ylab='resting blood pressure', xlab='age', main='target', col=ifelse(target=="TRUE",'red','blue'))
+
+plot(chol~age, data=data, ylab='serum cholestoral in mg/dl', xlab='age', main='target', col=ifelse(target=="TRUE",'red','blue'))
+
+plot(thalach~age, data=data, ylab='maximum heart rate achieved', xlab='age', main='target', col=ifelse(target=="TRUE",'red','blue'))
+
+
+plot(oldpeak~age, data=data, ylab='ST depression induced by exercise relative to rest', xlab='age', main='target', col=ifelse(target=="TRUE",'red','blue'))
+```
+
+
+```{r}
+library(glmnet)
+Mx<- model.matrix(target ~ .^2, data=data)[,-1]
+My<- data$target == "TRUE"
+num.features <- ncol(Mx)
+num.n <- nrow(Mx)
+num.target <- sum(My)
+w <- (num.target/num.n)*(1-(num.target/num.n))
+lambda.theory <- sqrt(w*log(num.features/0.05)/num.n)
+lassoTheory <- glmnet(Mx,My, family="binomial",lambda = lambda.theory)
+
+summary(lassoTheory)
+support(lassoTheory$beta)
+colnames(Mx)[support(lassoTheory$beta)]
+```
+
+
+```{r}
+set.seed(3)
+nfold <- 10
+n <- nrow(data)
+foldid <- rep(1:nfold,each=ceiling(n/nfold))[sample(1:n)]
+### create an empty dataframe of results
+OOS <- data.frame(logistic1=rep(NA,nfold), logistic2=rep(NA,nfold), logistic3=rep(NA,nfold), logistic4=rep(NA,nfold),null=rep(NA,nfold)) 
+
+### Use a for loop to run through the nfold trails
+for(k in 1:nfold){ 
+  train <- which(foldid!=k) # train on all but fold `k'
+  
+  ## fit the two regressions and null model
+  model.logistic1<-glm(factor(target)~.-fbs+age*ca+sex*chol+sex*ca+cp*restecg+cp*thalach+cp*oldpeak+cp*slope+trestbps*exang+trestbps*thal+restecg*slope+thalach*thal+thalach*ca+exang*oldpeak+oldpeak*slope+oldpeak*thal+slope*ca+ca*thal, data=data, subset=train, family="binomial")
+  model.logistic2 <-glm(factor(target)~thalach+oldpeak+age*ca+sex*chol+sex*ca+cp*restecg+cp*thalach+cp*oldpeak+cp*slope+trestbps*exang+trestbps*thal+restecg*slope+thalach*thal+thalach*ca+exang*oldpeak+oldpeak*slope+oldpeak*thal+slope*ca+ca*thal, data=data, subset=train,family="binomial")
+  model.logistic3 <-glm(factor(target)~.-fbs, data=data, subset=train,family="binomial")
+  model.logistic4 <-glm(factor(target)~., data=data, subset=train,family="binomial")
+  model.null <-glm(factor(target)~1, data=data, subset=train,family="binomial")
+  ## get predictions: type=response so we have probabilities
+  pred.logistic1 <- predict(model.logistic1, newdata=data[-train,], type="response")
+  pred.logistic2 <- predict(model.logistic2, newdata=data[-train,], type="response")
+  pred.logistic3 <- predict(model.logistic3, newdata=data[-train,], type="response")
+  pred.logistic4 <- predict(model.logistic4, newdata=data[-train,], type="response")
+  pred.null <- predict(model.null, newdata=data[-train,], type="response")
+  
+  ## calculate and log R2
+  # Logistic Interaction
+  OOS$logistic1[k] <- R2(y=factor(data$target[-train]), pred=pred.logistic1, family="binomial")
+  OOS$logistic1[k]
+  # Logistic
+   OOS$logistic2[k] <- R2(y=factor(data$target[-train]), pred=pred.logistic2, family="binomial")
+  OOS$logistic2[k]
+   OOS$logistic3[k] <- R2(y=factor(data$target[-train]), pred=pred.logistic3, family="binomial")
+  OOS$logistic3[k]
+   OOS$logistic4[k] <- R2(y=factor(data$target[-train]), pred=pred.logistic4, family="binomial")
+  OOS$logistic4[k]
+  
+  #Null
+  OOS$null[k] <- R2(y=factor(data$target[-train]), pred=pred.null, family="binomial")
+  OOS$null[k]
+  #Null Model guess
+  sum(data$target[train]=="TRUE")/length(train)
+  
+  ## We will loop this nfold times (I setup for 10)
+  ## this will print the progress (iteration that finished)
+  print(paste("Iteration",k,"of",nfold,"(thank you for your patience)"))
+}
+```
+```{r}
+colMeans(OOS)
+m.OOS <- as.matrix(OOS)
+rownames(m.OOS) <- c(1:nfold)
+barplot(t(as.matrix(OOS)), beside=TRUE, legend=TRUE, args.legend=c(xjust=1, yjust=0.5),
+        ylab= bquote( "Out of Sample " ~ R^2), xlab="Fold", names.arg = c(1:10))
+
+if (nfold >= 10){
+  names(OOS)[1] <-"logistic1"
+  boxplot(OOS, col="plum", las = 2, ylab=expression(paste("OOS ",R^2)), xlab="", main="10-fold Cross Validation")
+}
+```
+
+```{r}
+set.seed(4)
+nfold <- 10
+n <- nrow(data)
+foldid3 <- rep(1:nfold,each=ceiling(n/nfold))[sample(1:n)]
+
+OOS3 <- data.frame(logistic2=rep(NA,nfold),tree1=rep(NA,nfold),tree2=rep(NA,nfold),randomforest1=rep(NA,nfold),randomforest2=rep(NA,nfold),null=rep(NA,nfold)) 
+
+
+for(k in 1:nfold){ 
+  train <- which(foldid3!=k) # train on all but fold `k'
+  
+  
+  model.logistic2 <-glm(factor(target)~thalach+oldpeak+age*ca+sex*chol+sex*ca+cp*restecg+cp*thalach+cp*oldpeak+cp*slope+trestbps*exang+trestbps*thal+restecg*slope+thalach*thal+thalach*ca+exang*oldpeak+oldpeak*slope+oldpeak*thal+slope*ca+ca*thal, data=data, subset=train,family="binomial")
+  
+  model.tree1 <- tree(factor(target)~.-fbs, data=data, subset=train) 
+  model.tree2<- tree(factor(target)~., data=data, subset=train)
+  model.random1 <-randomForest(factor(target)~.-fbs,data=data,subset=train,ntree=500,nodesize=5,mtry=4)
+  model.random2 <-randomForest(factor(target)~.,data=data,subset=train,ntree=500,nodesize=5,mtry=4)
+  model.null <-glm(factor(target)~1, data=data, subset=train,family="binomial")
+
+ 
+  pred.logistic2 <- predict(model.logistic2, newdata=data[-train,], type="response")
+
+  pred.tree1 <- predict(model.tree1, newdata=data[-train,], type="vector")[,2]
+  pred.tree2<- predict(model.tree2, newdata=data[-train,], type="vector")[,2]
+  pred.randomforest1 <-predict(model.random1, newdata=data[-train,],type='prob')[,2]
+  pred.randomforest2 <-predict(model.random2, newdata=data[-train,],type='prob')[,2]
+  pred.tree11=c()
+  pred.tree22=c()
+  pred.randomforest11=c()
+   pred.randomforest22=c()
+
+  for(i in 1:length(pred.tree1)){if(pred.tree1[i]==1){pred.tree11=c(pred.tree11,0.9999999)}else if(pred.tree1[i]==0){pred.tree11=c(pred.tree11,0.0000001)}else{pred.tree11=c(pred.tree11,pred.tree1[i])}}
+  OOS3$tree1[k]=R2(y=factor(data$target[-train]),pred=pred.tree11,family='binomial')
+  
+ for(i in 1:length(pred.tree2)){if(pred.tree2[i]==1){pred.tree22=c(pred.tree22,0.9999999)}else if(pred.tree2[i]==0){pred.tree22=c(pred.tree22,0.0000001)}else{pred.tree22=c(pred.tree22,pred.tree2[i])}}
+  OOS3$tree2[k]=R2(y=factor(data$target[-train]),pred=pred.tree22,family='binomial')
+  
+ for(i in 1:length(pred.randomforest1)){if(pred.randomforest1[i]==1){pred.randomforest11=c(pred.randomforest11,0.9999999)}else if(pred.randomforest1[i]==0){pred.randomforest11=c(pred.randomforest11,0.0000001)}else{pred.randomforest11=c(pred.randomforest11,pred.randomforest1[i])}}
+  OOS3$randomforest1[k]=R2(y=factor(data$target[-train]),pred=pred.randomforest11,family='binomial')
+   for(i in 1:length(pred.randomforest2)){if(pred.randomforest2[i]==1){pred.randomforest22=c(pred.randomforest22,0.9999999)}else if(pred.randomforest2[i]==0){pred.randomforest22=c(pred.randomforest22,0.0000001)}else{pred.randomforest22=c(pred.randomforest22,pred.randomforest2[i])}}
+  OOS3$randomforest2[k]=R2(y=factor(data$target[-train]),pred=pred.randomforest22,family='binomial')
+
+  pred.null <- predict(model.null, newdata=data[-train,], type="response")
+  
+
+   OOS3$logistic2[k] <- R2(y=factor(data$target[-train]), pred=pred.logistic2, family="binomial")
+  OOS3$logistic2[k]
+  
+  OOS3$null[k] <- R2(y=factor(data$target[-train]), pred=pred.null, family="binomial")
+  OOS3$null[k]
+  #Null Model guess
+  sum(data$target[train]=="TRUE")/length(train)
+  
+  
+  print(paste("Iteration",k,"of",nfold,"(thank you for your patience)"))
+}
+```
+
+```{r}
+colMeans(OOS3)
+m.OOS3 <- as.matrix(OOS3)
+rownames(m.OOS3) <- c(1:nfold)
+barplot(t(as.matrix(OOS3)), beside=TRUE, legend=TRUE, args.legend=c(xjust=1, yjust=0.5),
+        ylab= bquote( "Out of Sample " ~ R^2), xlab="Fold", names.arg = c(1:10))
+
+if (nfold >= 10){
+  names(OOS3)[1] <-"logistic3"
+  boxplot(OOS3, col="plum", las = 2, ylab=expression(paste("OOS3 ",R^2)), xlab="", main="10-fold Cross Validation")
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
